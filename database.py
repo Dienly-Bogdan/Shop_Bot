@@ -5,7 +5,7 @@ from model import *
 class Database:
     __connection = None
     @classmethod
-    def open(cls, host="109.206.169.221", user="seschool_01", password="seschool_01", database="seschool_01_pks1"):
+    def open(cls,):
         if cls.__connection is None:
             cls.__connection = mysql.connector.connect(user=user,
                                                        password=password,
