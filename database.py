@@ -1,11 +1,12 @@
 import mysql.connector
 from model import *
+from config import base
 
 
 class Database:
     __connection = None
     @classmethod
-    def open(cls,):
+    def open(cls, host=base["host"], user=base["user"], password=base["password"], database=base["database"]):
         if cls.__connection is None:
             cls.__connection = mysql.connector.connect(user=user,
                                                        password=password,

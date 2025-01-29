@@ -1,7 +1,7 @@
 class Client:
     id: int
     name: str
-    address: str
+    address: dict
     number: str
 
 class Product:
