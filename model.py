@@ -1,18 +1,24 @@
+from typing import Dict, List, Tuple, Any
+
 class Client:
-    id: int
-    name: str
-    address: dict
-    number: str
+    def __init__(self):
+        self.id: int = 0
+        self.name: str = ""
+        self.address: str = ""
+        self.number: str = ""
 
 class Product:
-    id: int
-    name: str
-    quantity: int
-    price: float
-    guarantee: int
+    def __init__(self):
+        self.id: int = 0
+        self.name: str = ""
+        self.quantity: int = 0
+        self.price: float = 0.0
+        self.guarantee: int = 0
 
 class Order:
-    id: int
-    id_product: int
-    id_client: int
-    data: str
+    def __init__(self):
+        self.id: int = 0
+        self.id_client: int = 0
+        self.date: str = ""
+        self.total_price: float = 0.0
+        self.status: str = ""
