@@ -1,12 +1,11 @@
-from aiogram import F, Router
-from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
+from aiogram import Router, F
+from aiogram.types import Message
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, ReplyKeyboardRemove
-from model import Client
-from database import ClientTable, Database
-from keyboards import get_main_keyboard
-import re
+from aiogram.fsm.context import FSMContext
+
+# from model import ClientTable  # раскомментируйте при наличии моделей
+
+router = Router()
 
 class Registration(StatesGroup):
     name_input = State()
@@ -14,97 +13,62 @@ class Registration(StatesGroup):
     street_input = State()
     house_number_input = State()
     number_input = State()
+    done = State()
 
-router = Router()
-
-@router.message(Command("start"))
-async def start(message: Message, state: FSMContext):
-    await message.answer(
-        "Добро пожаловать в Компьютерный Магазин ПКРу!\n"
-        "Чтобы продолжить, нужно пройти регистрацию! Введите команду /register",
-        reply_markup=get_main_keyboard()
-    )
-
-@router.message(Command('register'))
+@router.message(Command("register"))
 async def register(message: Message, state: FSMContext):
-    # Check if user already registered
-    client = ClientTable.get_by_phone(str(message.from_user.id))
-    if client:
-        await message.answer(
-            "Вы уже зарегистрированы!\n"
-            "Можете перейти к покупкам с помощью /buy",
-            reply_markup=get_main_keyboard()
-        )
-        return
-        
-    await message.answer(
-        "Начнём регистрацию!\n"
-        "Введите ваше имя (только русские буквы, начинается с заглавной):",
-        reply_markup=ReplyKeyboardRemove()
-    )
+    await message.answer("Введите Имя (на русском, с заглавной буквы):")
     await state.set_state(Registration.name_input)
 
-@router.message(Registration.name_input, F.text.regexp(r'^[А-Я][а-я]+\s*[А-Я]*[а-я]*$'))
-async def name_input(message: Message, state: FSMContext):
+@router.message(Registration.name_input, F.text.regexp(r'^[А-ЯЁ][а-яё]+$'))
+async def process_name(message: Message, state: FSMContext):
     await state.update_data(name=message.text)
-    await message.answer("Введите ваш город:")
+    await message.answer("Введите город (с заглавной буквы):")
     await state.set_state(Registration.city_input)
 
 @router.message(Registration.name_input)
-async def invalid_name_input(message: Message):
-    await message.answer("❌ Имя должно начинаться с заглавной буквы и состоять только из русских символов!")
+async def invalid_name(message: Message, state: FSMContext):
+    await message.answer("❌ Имя должно начинаться с заглавной буквы и содержать только русские буквы.")
 
-@router.message(Registration.city_input, F.text.regexp(r'^[А-Я][а-я]+$'))
-async def city_input(message: Message, state: FSMContext):
+@router.message(Registration.city_input, F.text.regexp(r'^[А-ЯЁ][а-яё\s-]+$'))
+async def process_city(message: Message, state: FSMContext):
     await state.update_data(city=message.text)
-    await message.answer("Введите вашу улицу:")
+    await message.answer("Введите улицу (с заглавной буквы):")
     await state.set_state(Registration.street_input)
 
 @router.message(Registration.city_input)
-async def invalid_city_input(message: Message):
+async def invalid_city(message: Message, state: FSMContext):
     await message.answer("❌ Город должен начинаться с заглавной буквы и содержать только русские буквы!")
 
-@router.message(Registration.street_input, F.text.regexp(r'^[А-Я][а-я]+\s*[А-Я]*[а-я]*$'))
-async def street_input(message: Message, state: FSMContext):
+@router.message(Registration.street_input, F.text.regexp(r'^[А-ЯЁ][а-яё0-9\s-]+$'))
+async def process_street(message: Message, state: FSMContext):
     await state.update_data(street=message.text)
-    await message.answer("Введите номер дома:")
+    await message.answer("Введите номер дома (например: 17, 17А, 5/2Б):")
     await state.set_state(Registration.house_number_input)
 
 @router.message(Registration.street_input)
-async def invalid_street_input(message: Message):
-    await message.answer("❌ Улица должна начинаться с заглавной буквы и содержать только русские буквы!")
+async def invalid_street(message: Message, state: FSMContext):
+    await message.answer("❌ Улица должна начинаться с заглавной буквы и содержать только русские буквы, цифры, пробелы и дефисы!")
 
-@router.message(Registration.house_number_input, F.text.regexp(r'^[1-9][0-9]*[а-яА-Я]?$'))
-async def house_number_input(message: Message, state: FSMContext):
+@router.message(Registration.house_number_input, F.text.regexp(r'^[0-9]+[а-яА-Я]?(\/[0-9]+[а-яА-Я]?)?$'))
+async def process_house_number(message: Message, state: FSMContext):
     await state.update_data(house_number=message.text)
     await message.answer("Введите номер телефона в формате +79000000000:")
     await state.set_state(Registration.number_input)
 
 @router.message(Registration.house_number_input)
-async def invalid_house_number_input(message: Message):
-    await message.answer("❌ Номер дома должен содержать цифры и необязательно букву в конце!")
+async def invalid_house_number(message: Message, state: FSMContext):
+    await message.answer("❌ Номер дома должен содержать цифры и необязательно букву или дробь в конце!")
 
-@router.message(Registration.number_input, F.text.regexp(r'^\+7[0-9]{10}$'))
-async def number_input(message: Message, state: FSMContext):
-    data = await state.get_data()
-    
-    # Create client object
-    client = Client()
-    client.name = data.get('name', '')
-    client.address = f"{data.get('city', '')}, {data.get('street', '')}, {data.get('house_number', '')}"
-    client.number = message.text
-    
-    # Save to database
-    client_id = ClientTable.add(client)
-    
-    await message.answer(
-        "✅ Регистрация успешно завершена!\n"
-        f"Ваш ID: {client_id}\n"
-        "Теперь вы можете делать покупки с помощью команды /buy",
-        reply_markup=get_main_keyboard()
-    )
+@router.message(Registration.number_input, F.text.regexp(r'^\+79\d{9}$'))
+async def process_phone(message: Message, state: FSMContext):
+    await state.update_data(number=message.text)
+    user_data = await state.get_data()
+    # Здесь должен быть код для сохранения пользователя в БД, например:
+    # client = ClientTable.create(user_id=message.from_user.id, **user_data)
+    await message.answer("✅ Регистрация завершена! Теперь вы можете пользоваться ботом.")
     await state.clear()
 
 @router.message(Registration.number_input)
-async def invalid_number_input(message: Message):
+async def invalid_phone(message: Message, state: FSMContext):
     await message.answer("❌ Неверный формат номера! Пример: +79000000000")
